@@ -1,5 +1,5 @@
 from typing import Any, Tuple, List
-import catflow_worker.worker
+from catflow_worker.worker import Worker
 
 
 async def example_handler(
@@ -20,9 +20,9 @@ async def example_handler(
 async def main(topic_key: str) -> bool:
     """Run an example worker"""
 
-    if not await catflow_worker.worker.work(
-        example_handler, "catflow-worker-example", topic_key
-    ):
+    worker = await Worker.create(example_handler, "catflow-worker-example", topic_key)
+
+    if not await worker.work():
         print("[!] Exited with error")
         return False
 

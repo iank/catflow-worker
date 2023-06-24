@@ -45,9 +45,15 @@ pip install build
 python -m build
 ```
 
+# Test
+
+```
+pytest
+```
+
 # Usage
 
-Define a handler function and a topic key to subscribe to.
+Define an async handler function and a topic key to subscribe to.
 
 The handler function gets:
 
@@ -61,4 +67,11 @@ and returns:
     * an error status
     * a list of (key, message) tuples to publish
 
-The handler should be async.
+Then start it like:
+
+```
+worker = await Worker.create(handler, queue_name, topic_key)
+await worker.work()
+```
+
+See `catflow_worker/main.py` for a working example.

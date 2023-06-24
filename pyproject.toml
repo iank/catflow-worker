@@ -32,4 +32,5 @@ write_to = "catflow_worker/_version.py"
 [tool.pytest.ini_options]
 filterwarnings = [
     "error",
+    'ignore:rabbitmq_logsdir:DeprecationWarning',
 ]
