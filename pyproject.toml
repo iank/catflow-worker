@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catflow-worker"
+dynamic = ["version"]
+description = "Consumer/publisher loop for workers in an object recognition pipeline"
+authors = [{ name = "Ian Kilgore", email = "iank@iank.org"}]
+license = {file = "LICENSE"}
+requires-python = ">=3.7"
+dependencies = [
+  "aio_pika",
+  "aioboto3",
+]
+
+[tool.setuptools]
+packages = ["catflow_worker"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-asyncio",
+  "pytest-rabbitmq",
+  "moto[server]",
+  "aiofile",
+]
+
+[tool.setuptools_scm]
+write_to = "catflow_worker/_version.py"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+]
