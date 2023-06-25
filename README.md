@@ -53,19 +53,17 @@ pytest
 
 # Usage
 
-Define an async handler function and a topic key to subscribe to.
+Define an async handler function:
 
-The handler function gets:
+```
+async def example_handler(
+    msg: str, key: str, s3: Any, bucket: str
+) -> Tuple[bool, List[Tuple[str, str]]]:
+```
 
-    * a message
-    * the key the message was sent to
-    * an S3 client
-    * the S3 bucket name
-
-and returns:
-
-    * an error status
-    * a list of (key, message) tuples to publish
+The handler function
+* gets: a message, the key the message was sent to, an S3 client, the name of an S3 bucket to use
+* and returns: an error status, and a list of (key, message) tuples to publish
 
 Then start it like:
 
