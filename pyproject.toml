@@ -11,8 +11,11 @@ authors = [{ name = "Ian Kilgore", email = "iank@iank.org"}]
 license = {file = "LICENSE"}
 requires-python = ">=3.7"
 dependencies = [
-  "aio_pika",
-  "aioboto3",
+  "aio_pika>=9.1.3",
+  "aioboto3>=11.2.0",
+  "aiobotocore>=2.5.0",
+  "boto3>=1.26.76",
+  "botocore>=1.29.76",
 ]
 
 [tool.setuptools]
@@ -23,7 +26,7 @@ dev = [
   "pytest",
   "pytest-asyncio",
   "pytest-rabbitmq",
-  "moto[server]",
+  "moto[server]>=4.1.11",
   "aiofile",
 ]
 
