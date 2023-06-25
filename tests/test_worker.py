@@ -58,6 +58,12 @@ async def test_worker(rabbitmq, s3_server):
     channel = rabbitmq.channel()
     channel.exchange_declare(exchange=AMQP_EXCHANGE, exchange_type="topic")
 
+    # Declare and bind a queue to receive 'responses' from the worker
+    channel.queue_declare("pytest-responses")
+    channel.queue_bind(
+        exchange=AMQP_EXCHANGE, queue="pytest-responses", routing_key="test-response.*"
+    )
+
     # Set up test handler and run it
     messages_received = []
     files_received = []
@@ -71,8 +77,10 @@ async def test_worker(rabbitmq, s3_server):
         file_content = await s3obj["Body"].read()
         files_received.append(file_content.decode("utf-8"))
 
-        # TODO: send responses
-        return True, []
+        if key == "test.key1":
+            return True, [("test-response.key", file_content.decode("utf-8"))]
+        else:
+            return True, []
 
     worker = await catflow_worker.Worker.create(
         _handler, "catflow-worker-testq", "test.*"
@@ -97,4 +105,8 @@ async def test_worker(rabbitmq, s3_server):
     assert set(messages_received) == set(["test.key1", "test.key2"])
     assert set(files_received) == set(["filecontents1", "filecontents2"])
 
-    # TODO: check responses
+    _, _, body = channel.basic_get("pytest-responses")
+    assert body.decode() == "filecontents1"
+
+    method_frame, _, _ = channel.basic_get("pytest-responses")
+    assert method_frame is None, "too many responses"
