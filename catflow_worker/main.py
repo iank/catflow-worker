@@ -1,5 +1,7 @@
 from typing import Any, Tuple, List
 from catflow_worker.worker import Worker
+import signal
+import asyncio
 
 
 async def example_handler(
@@ -17,13 +19,32 @@ async def example_handler(
     return True, []
 
 
+async def shutdown(worker, task):
+    await worker.shutdown()
+    task.cancel()
+    try:
+        await task
+    except asyncio.exceptions.CancelledError:
+        pass
+
+
 async def main(topic_key: str) -> bool:
     """Run an example worker"""
 
     worker = await Worker.create(example_handler, "catflow-worker-example", topic_key)
+    task = asyncio.create_task(worker.work())
 
-    if not await worker.work():
-        print("[!] Exited with error")
-        return False
+    def handle_sigint(sig, frame):
+        print("^ SIGINT received, shutting down...")
+        asyncio.create_task(shutdown(worker, task))
+
+    signal.signal(signal.SIGINT, handle_sigint)
+
+    try:
+        if not await task:
+            print("[!] Exited with error")
+            return False
+    except asyncio.exceptions.CancelledError:
+        return True
 
     return True
