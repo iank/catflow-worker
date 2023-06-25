@@ -2,6 +2,7 @@ from typing import Callable, Any
 import os
 import aio_pika
 import aioboto3
+import json
 
 
 class Producer:
@@ -67,7 +68,7 @@ class Worker:
                 async for message in queue_iter:
                     # Call handler for each message
                     ok, responses = await self.handler(
-                        message.body.decode(), message.routing_key, s3, bucket_name
+                        json.loads(message.body), message.routing_key, s3, bucket_name
                     )
                     # Acknowledge if the handler has succeeded, but we'll assume
                     # that if they've provided responses AND a failure status that
@@ -79,7 +80,9 @@ class Worker:
                     # Send responses
                     for response in responses:
                         routing_key, message = response
-                        await self.producer.send_to_rabbitmq(routing_key, message)
+                        await self.producer.send_to_rabbitmq(
+                            routing_key, json.dumps(message)
+                        )
 
                     # Exit if the handler has failed
                     if not ok:

@@ -4,6 +4,7 @@ import asyncio
 import aioboto3
 from io import BytesIO
 import os
+import json
 
 from .mock_server import start_service
 from .mock_server import stop_process
@@ -48,10 +49,13 @@ async def test_worker(rabbitmq, s3_server):
             BytesIO(bytes("filecontents1", "utf-8")), AWS_BUCKET_NAME, "test1"
         )
         await s3.upload_fileobj(
-            BytesIO(bytes("filecontents2", "utf-8")), AWS_BUCKET_NAME, "test2"
+            BytesIO(bytes("filecontentsbatch1", "utf-8")), AWS_BUCKET_NAME, "testbatch1"
         )
         await s3.upload_fileobj(
-            BytesIO(bytes("filecontents2", "utf-8")), AWS_BUCKET_NAME, "test3"
+            BytesIO(bytes("filecontentsbatch2", "utf-8")), AWS_BUCKET_NAME, "testbatch2"
+        )
+        await s3.upload_fileobj(
+            BytesIO(bytes("filecontents3", "utf-8")), AWS_BUCKET_NAME, "fail3"
         )
 
     # Declare an exchange, we'll publish some test data to it
@@ -69,16 +73,18 @@ async def test_worker(rabbitmq, s3_server):
     files_received = []
 
     async def _handler(msg, key, s3, bucket):
-        s3obj = await s3.get_object(Bucket=bucket, Key=msg)
         nonlocal messages_received
         nonlocal files_received
 
         messages_received.append(key)
-        file_content = await s3obj["Body"].read()
-        files_received.append(file_content.decode("utf-8"))
+
+        for s3_key in msg:
+            s3obj = await s3.get_object(Bucket=bucket, Key=s3_key)
+            file_content = await s3obj["Body"].read()
+            files_received.append(file_content.decode("utf-8"))
 
         if key == "test.key1":
-            return True, [("test-response.key", file_content.decode("utf-8"))]
+            return True, [("test-response.key", [file_content.decode("utf-8")])]
         else:
             return True, []
 
@@ -89,9 +95,11 @@ async def test_worker(rabbitmq, s3_server):
 
     # Give the consumer a chance to connect and declare its queue, then publish messages
     await asyncio.sleep(1)
-    channel.basic_publish(AMQP_EXCHANGE, "test.key1", "test1")
-    channel.basic_publish(AMQP_EXCHANGE, "test.key2", "test2")
-    channel.basic_publish(AMQP_EXCHANGE, "fail.key3", "fail3")
+    channel.basic_publish(AMQP_EXCHANGE, "test.key1", json.dumps(["test1"]))
+    channel.basic_publish(
+        AMQP_EXCHANGE, "test.key2", json.dumps(["testbatch1", "testbatch2"])
+    )
+    channel.basic_publish(AMQP_EXCHANGE, "fail.key3", json.dumps(["fail3"]))
 
     # Wait a moment then shut it down
     await asyncio.sleep(1)
@@ -102,11 +110,15 @@ async def test_worker(rabbitmq, s3_server):
     except asyncio.CancelledError:
         pass
 
+    assert len(messages_received) == 2
+    assert len(files_received) == 3
     assert set(messages_received) == set(["test.key1", "test.key2"])
-    assert set(files_received) == set(["filecontents1", "filecontents2"])
+    assert set(files_received) == set(
+        ["filecontents1", "filecontentsbatch1", "filecontentsbatch2"]
+    )
 
     _, _, body = channel.basic_get("pytest-responses")
-    assert body.decode() == "filecontents1"
+    assert json.loads(body) == ["filecontents1"]
 
     method_frame, _, _ = channel.basic_get("pytest-responses")
     assert method_frame is None, "too many responses"
