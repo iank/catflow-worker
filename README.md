@@ -58,7 +58,7 @@ Define an async handler function:
 ```
 async def example_handler(
     msg: str, key: str, s3: Any, bucket: str
-) -> Tuple[bool, List[Tuple[str, str]]]:
+) -> Tuple[bool, Tuple[str, List[Any]]]:
 ```
 
 The handler function
