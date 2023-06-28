@@ -1,21 +1,40 @@
 from typing import Any, Tuple, List
 from catflow_worker.worker import Worker
+from catflow_worker.types import (
+    VideoFileSchema,
+    RawFrameSchema,
+    EmbeddedFrameSchema,
+    AnnotatedFrameSchema,
+)
 import signal
 import asyncio
 
 
 async def example_handler(
     msg: str, key: str, s3: Any, bucket: str
-) -> Tuple[bool, List[Tuple[str, str]]]:
-    """Example message handler function
+) -> Tuple[bool, Tuple[str, List[Any]]]:
+    """Example message handler function"""
 
-    Queries S3 for metadata about the object in the message and displays it."""
-    print(f"[*] Message received ({key}):")
+    # Map routing keys to schemas
+    pipeline, data_type = key.split(".")
+    schema_map = {
+        "video": VideoFileSchema,
+        "rawframes": RawFrameSchema,
+        "embeddings": EmbeddedFrameSchema,
+        "annotatedframes": AnnotatedFrameSchema,
+    }
 
-    for s3key in msg:
+    schema = schema_map[data_type](many=True)
+    msg_obj = schema.load(msg)
+
+    print(f"[*] Message received ({key}): {msg_obj}")
+
+    # If it's a video file, let's also get it from S3 and display some metadata
+    if data_type == "video":
+        s3key = msg_obj.key  # msg_obj is a catflow_worker.types.VideoFile()
         s3obj = await s3.get_object(Bucket=bucket, Key=s3key)
         obj_info = s3obj["ResponseMetadata"]["HTTPHeaders"]
-        print(f"[-] {s3key}:")
+        print(f"[-] Video {s3key}:")
         print(f"    Content-Type {obj_info['content-type']}")
         print(f"    Content-Length {obj_info['content-length']}")
 
