@@ -25,18 +25,20 @@ async def example_handler(
     }
 
     schema = schema_map[data_type](many=True)
-    msg_obj = schema.load(msg)
+    msg_objs = schema.load(msg)
 
-    print(f"[*] Message received ({key}): {msg_obj}")
+    # Print message
+    print(f"[*] Message received ({key}):")
+    for msg_obj in msg_objs:
+        print(f"[-] {msg_obj!s}")
 
-    # If it's a video file, let's also get it from S3 and display some metadata
-    if data_type == "video":
-        s3key = msg_obj.key  # msg_obj is a catflow_worker.types.VideoFile()
-        s3obj = await s3.get_object(Bucket=bucket, Key=s3key)
-        obj_info = s3obj["ResponseMetadata"]["HTTPHeaders"]
-        print(f"[-] Video {s3key}:")
-        print(f"    Content-Type {obj_info['content-type']}")
-        print(f"    Content-Length {obj_info['content-length']}")
+        # If it's a video file, let's also get it from S3 and display some metadata
+        if data_type == "video":
+            # msg_objs is a catflow_worker.types.VideoFile
+            s3obj = await s3.get_object(Bucket=bucket, Key=msg_obj.key)
+            obj_info = s3obj["ResponseMetadata"]["HTTPHeaders"]
+            print(f"    Content-Type {obj_info['content-type']}")
+            print(f"    Content-Length {obj_info['content-length']}")
 
     return True, []
 
